@@ -1,0 +1,2 @@
+This project is a starter template for an Express server integrated with MongoDB and Redis.
+The main file (`index.js`) initializes the application, loads environment variables, connects to external services, defines routes, and starts the server. MongoDB connection logic is isolated in `database.js`, while Redis setup is isolated in `redis.js` to keep the code modular and reusable. The included routes are simple health checks to verify that both Redis and MongoDB are connected and working correctly.

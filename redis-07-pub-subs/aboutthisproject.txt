@@ -1,0 +1,689 @@
+redis-07
+
+# Redis Pub/Sub Notification System - Project Explanation
+
+## Project Overview
+
+This project demonstrates how Redis Pub/Sub (Publish/Subscribe) works using:
+
+* Express.js (API Server)
+* Redis (Message Broker)
+* ioredis (Redis Client)
+* Postman (Testing)
+
+The project consists of two main parts:
+
+1. **Publisher** → Sends notifications to Redis.
+2. **Subscriber** → Listens for notifications from Redis.
+
+---
+
+# Project Structure
+
+```text
+project/
+│
+├── index.js          # Publisher (Express API)
+├── subscriber.js     # Subscriber (Listener)
+├── .env
+├── package.json
+```
+
+---
+
+# How Redis Pub/Sub Works
+
+Redis Pub/Sub follows the Publisher-Subscriber pattern.
+
+```text
+Publisher
+    |
+    |
+    v
+ Redis Channel
+    |
+    |
+    v
+Subscribers
+```
+
+Instead of sending messages directly to subscribers, the publisher sends messages to a channel.
+
+Any subscriber listening to that channel receives the message instantly.
+
+---
+
+# Components Used
+
+## 1. Express Server
+
+Located in:
+
+```text
+index.js
+```
+
+Responsibilities:
+
+* Accept HTTP requests
+* Create notification payloads
+* Publish messages to Redis
+
+---
+
+## 2. Redis
+
+Acts as a message broker.
+
+Responsibilities:
+
+* Receive published messages
+* Deliver messages to all active subscribers
+
+Redis does not store Pub/Sub messages.
+
+If no subscriber is listening, the message is lost.
+
+---
+
+## 3. Subscriber
+
+Located in:
+
+```text
+subscriber.js
+```
+
+Responsibilities:
+
+* Subscribe to a Redis channel
+* Receive messages
+* Process or display notifications
+
+---
+
+# Publisher Flow (index.js)
+
+## Step 1: Client Sends Request
+
+```http
+POST /notifications
+```
+
+Example:
+
+```json
+{
+  "title": "Server Down"
+}
+```
+
+---
+
+## Step 2: Create Payload
+
+```js
+const payload = {
+    title: req.body.title,
+    createdAt: new Date().toISOString()
+}
+```
+
+Generated Payload:
+
+```json
+{
+  "title": "Server Down",
+  "createdAt": "2026-06-18T12:30:00.000Z"
+}
+```
+
+---
+
+## Step 3: Publish Message
+
+```js
+publisher.publish(
+    "notifications",
+    JSON.stringify(payload)
+);
+```
+
+Channel:
+
+```text
+notifications
+```
+
+Message:
+
+```json
+{
+  "title": "Server Down",
+  "createdAt": "2026-06-18T12:30:00.000Z"
+}
+```
+
+Redis receives the message and forwards it to all active subscribers.
+
+---
+
+## Step 4: Send Response
+
+```js
+res.json({
+  message: `Notification sent to ${receivers} subscribers!`
+});
+```
+
+Example Response:
+
+```json
+{
+  "message": "Notification sent to 2 subscribers!"
+}
+```
+
+---
+
+# Subscriber Flow (subscriber.js)
+
+## Step 1: Connect to Redis
+
+```js
+const subscriber = new Redis(
+  process.env.REDIS_URL
+);
+```
+
+Connection established:
+
+```text
+Subscriber → Redis
+```
+
+---
+
+## Step 2: Subscribe to Channel
+
+```js
+subscriber.subscribe("notifications");
+```
+
+The subscriber tells Redis:
+
+```text
+I want all messages from:
+notifications
+```
+
+---
+
+## Step 3: Listen for Messages
+
+```js
+subscriber.on(
+  "message",
+  (channel, message) => {
+      console.log(message);
+  }
+);
+```
+
+Whenever Redis receives a message on:
+
+```text
+notifications
+```
+
+this event is triggered.
+
+---
+
+## Step 4: Parse Message
+
+Messages arrive as strings.
+
+Example:
+
+```text
+"{\"title\":\"Server Down\"}"
+```
+
+Convert back into an object:
+
+```js
+JSON.parse(message);
+```
+
+Result:
+
+```js
+{
+  title: "Server Down"
+}
+```
+
+---
+
+# Complete Project Flow
+
+```text
+User
+  |
+  |
+  v
+Postman
+  |
+  |
+  v
+Express API
+(index.js)
+  |
+  |
+  v
+Redis Publisher
+  |
+  |
+  v
+Redis Channel
+("notifications")
+  |
+  |
+  v
+Subscriber
+(subscriber.js)
+  |
+  |
+  v
+Console Output
+```
+
+---
+
+# Example Execution
+
+## Request
+
+```json
+{
+  "title": "Redis Learning"
+}
+```
+
+---
+
+## Publisher
+
+Creates:
+
+```json
+{
+  "title": "Redis Learning",
+  "createdAt": "2026-06-18T12:30:00.000Z"
+}
+```
+
+Publishes to:
+
+```text
+notifications
+```
+
+---
+
+## Redis
+
+Broadcasts message to all subscribers.
+
+---
+
+## Subscriber Output
+
+```bash
+received on notifications :
+{
+  title: 'Redis Learning',
+  createdAt: '2026-06-18T12:30:00.000Z'
+}
+```
+
+---
+
+# Key Concepts Learned
+
+## Publisher
+
+A publisher sends messages to a Redis channel.
+
+Example:
+
+```js
+publisher.publish(...)
+```
+
+---
+
+## Subscriber
+
+A subscriber listens to a Redis channel.
+
+Example:
+
+```js
+subscriber.subscribe(...)
+```
+
+---
+
+## Channel
+
+A logical communication path between publishers and subscribers.
+
+Example:
+
+```text
+notifications
+```
+
+---
+
+## Broadcast
+
+Every subscriber listening to the channel receives the message.
+
+```text
+Publisher
+   |
+ Redis
+   |
+---------
+|   |   |
+A   B   C
+```
+
+All receive the same message.
+
+---
+
+# Limitations of Redis Pub/Sub
+
+## No Persistence
+
+If nobody is subscribed:
+
+```text
+Publisher → Redis → Lost
+```
+
+Message disappears.
+
+---
+
+## No Retry Mechanism
+
+If a subscriber crashes:
+
+```text
+Message Lost
+```
+
+Redis does not resend it.
+
+---
+
+## Real-Time Only
+
+Subscribers only receive messages published while they are connected.
+
+Old messages cannot be retrieved later.
+
+---
+
+# When to Use Redis Pub/Sub
+
+Good For:
+
+* Live notifications
+* Chat systems
+* Real-time updates
+* Event broadcasting
+* WebSocket message distribution
+
+Not Ideal For:
+
+* Email queues
+* Payment processing
+* Background jobs
+* Reliable task execution
+
+For those use cases, use BullMQ or Redis Streams instead.
+
+---
+
+# Interview Summary
+
+This project demonstrates a basic Redis Pub/Sub architecture where an Express API acts as a publisher and sends notifications to a Redis channel. A subscriber process listens to the channel and receives messages in real time. Redis acts as the message broker, enabling decoupled communication between publishers and subscribers through a broadcast mechanism.
+
+
+----------------
+
+
+
+
+
+
+
+
+
+# Testing Redis Pub/Sub with Postman
+
+## Prerequisites
+
+Make sure the following are running:
+
+### 1. Start Redis
+
+```bash
+redis-server
+```
+
+### 2. Start Subscriber
+
+```bash
+node subscriber.js
+```
+
+Expected Output:
+
+```bash
+subscriber Connected
+Successfully subscribed to notifications
+```
+
+### 3. Start Express Server
+
+```bash
+node index.js
+```
+
+Expected Output:
+
+```bash
+Server running on port 3000
+```
+
+---
+
+# Testing with Postman
+
+## Create a New Request
+
+### Method
+
+```http
+POST
+```
+
+### URL
+
+```http
+http://localhost:3000/notifications
+```
+
+---
+
+## Configure Request Body
+
+Go to:
+
+```text
+Body → raw → JSON
+```
+
+Add:
+
+```json
+{
+  "title": "Hello from Postman"
+}
+```
+
+---
+
+## Send Request
+
+Click **Send**.
+
+Expected Response:
+
+```json
+{
+  "message": "Notification sent to 1 subscribers!"
+}
+```
+
+> The number depends on how many subscribers are currently listening.
+
+---
+
+# Verify Subscriber
+
+Check the terminal running `subscriber.js`.
+
+Expected Output:
+
+```bash
+received on notifications :
+{
+  title: 'Hello from Postman',
+  createdAt: '2026-06-18T12:34:56.789Z'
+}
+```
+
+---
+
+# Flow Behind the Scenes
+
+```text
+Postman
+   ↓
+POST /notifications
+   ↓
+Express Server
+   ↓
+publisher.publish()
+   ↓
+Redis Channel (notifications)
+   ↓
+subscriber.js
+   ↓
+Message Received
+```
+
+---
+
+# Test Cases
+
+## Test 1: Successful Publish
+
+Request:
+
+```json
+{
+  "title": "Redis PubSub Test"
+}
+```
+
+Expected:
+
+* API returns success response.
+* Subscriber receives and logs the message.
+
+---
+
+## Test 2: Multiple Subscribers
+
+Open multiple terminals:
+
+```bash
+node subscriber.js
+```
+
+```bash
+node subscriber.js
+```
+
+Send the request again.
+
+Expected Response:
+
+```json
+{
+  "message": "Notification sent to 2 subscribers!"
+}
+```
+
+Both subscribers should receive the same message.
+
+---
+
+## Test 3: No Subscribers
+
+Stop all subscriber processes.
+
+Send:
+
+```json
+{
+  "title": "Nobody Listening"
+}
+```
+
+Expected Response:
+
+```json
+{
+  "message": "Notification sent to 0 subscribers!"
+}
+```
+
+### Observation
+
+Redis Pub/Sub does **not store messages**.
+
+If no subscriber is listening, the message is lost.
+
+---
+
+# Key Learning
+
+Redis Pub/Sub is:
+
+* Real-time
+* Broadcast-based
+* Fire-and-forget
+* No message persistence
+* Every active subscriber receives the message
+
+If a subscriber is offline when a message is published, it will not receive that message later.

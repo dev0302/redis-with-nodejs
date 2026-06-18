@@ -1,0 +1,10 @@
+here performing the operation of redis and storing, deleting data inside it
+
+using :
+
+redis.set
+redis.get
+redis.del
+redis.exists
+
+simple operations just btw backend and redis db (no mongodb used till now)
