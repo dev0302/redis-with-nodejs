@@ -641,4 +641,4 @@ Use BullMQ or Redis Streams for:
 
 ## License
 
-No license file is currently included. Add a `LICENSE` file before using this repository as a public reusable template.
+All Rights Reserved @2026
